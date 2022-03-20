@@ -1,0 +1,6 @@
+- name: "Install wg"
+  hosts: wg
+  gather_facts: yes
+  roles:
+  - update_system
+  - wg_install

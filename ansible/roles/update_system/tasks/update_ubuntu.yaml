@@ -1,0 +1,16 @@
+# Update system  Ubuntu
+#
+#
+- name: Update System cache [Common, Debian family]
+  apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 3600
+  tags:
+    - update_system
+- name: Update System packages [Common, Debian family]
+  apt:
+    name: "*"
+    state: present
+  tags:
+    - update_system

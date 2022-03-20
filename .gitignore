@@ -1,0 +1,9 @@
+*.pub
+terraform.tfvars
+terraform.tfstate
+/ansible/ansible.log
+/ansible/wg_peer.conf
+/ansible/inventory
+terraform.tfstate.backup
+.terraform.lock.hcl
+.terraform/

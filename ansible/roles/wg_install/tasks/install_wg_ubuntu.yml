@@ -1,0 +1,164 @@
+---
+
+# Install WireGuard
+- name: In WG config we use net interface
+  debug:
+    msg: 
+      - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address}}"
+      - "We will use network port: {{ wg_port }}"
+      - "Server  subnet ip will be : {{ adress_srv }}"
+      - "Peer subnet ip will be : {{ adress_peer }}"
+
+- name: Install WireGuard and resolvconf
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - wireguard
+    - resolvconf
+  tags:
+    - install_wireguard
+
+### Remove old configs #####
+- name: Make sure that service WG is stopped
+  systemd:
+    name: wg-quick@wg0.service
+    state: stopped
+    
+- name: Search old configs on the server side
+  find:
+    path: /etc/wireguard
+    patterns: "*.key"
+  register: old_conf
+  
+- name: Delete Search old configs on the server side
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ old_conf.files }}"
+  ignore_errors: yes
+  
+- name: Search old configs on the localhost side
+  find:
+    path: /etc/wireguard
+    patterns: "*.key"
+  register: old_conf_loc
+  delegate_to: 127.0.0.1
+  
+- name: Delete old configs on the localhost side
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ old_conf_loc.files }}"
+  delegate_to: 127.0.0.1
+  ignore_errors: yes
+
+##### Generating  server keys #####
+- name: Generate WireGuard private server key
+  shell: 'wg genkey | sudo tee /etc/wireguard/private.key'
+
+- name: Change permission for key
+  file:
+    path: /etc/wireguard/private.key
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Generate WireGuard public server key
+  shell: 'sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key'
+
+- name: Read private server key
+  slurp:
+    src: /etc/wireguard/private.key
+  register: pv_key_enc
+
+- name: Read pub server key
+  slurp:
+    src: /etc/wireguard/public.key
+  register: pub_key_enc
+
+- name: Decode pv servre key
+  set_fact:
+    pv_key: "{{ pv_key_enc.content | b64decode }}"
+- name: Decode pub server key
+  set_fact:
+    pub_key: "{{ pub_key_enc.content | b64decode }}"
+
+
+### Generate local peer keys #####
+- name: Generate WireGuard private peer key
+  shell: 'wg genkey | sudo tee /etc/wireguard/private.key'
+  delegate_to: 127.0.0.1
+  tags:
+    - local_peer
+
+- name: Generate WireGuard public peer key
+  shell: 'sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key'
+  delegate_to: 127.0.0.1
+  tags:
+    - local_peer
+
+- name: Read local peer pv key
+  set_fact:
+    pv_peer_key: "{{ lookup('file','/etc/wireguard/private.key') }}"
+    
+- name: Read local peer pub key
+  set_fact:
+    pub_peer_key: "{{ lookup('file','/etc/wireguard/public.key') }}"
+
+
+#### Render configs #####
+- name: Create WireGuard  server config file
+  template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    owner: root
+    mode: '0600'
+    
+- name: Create WireGuard  peer config file
+  template:
+    src: wg_peer.j2
+    dest: ./wg_peer.conf
+  delegate_to: 127.0.0.1
+  
+- name: Adjust sysctl.config
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: '#net\.ipv4\.ip_forward=[0-9]'
+    line: net.ipv4.ip_forward=1
+    
+- name: Check sysctl and load values
+  shell: sysctl -p
+
+#### Setup UFW #####
+- name: Allow SSH port
+  community.general.ufw:
+    rule: allow
+    port: '22'
+- name: Allow UDP WireGuard port
+  community.general.ufw:
+    rule: allow
+    port: "{{ wg_port }}"
+- name: Allow HTTP(s)/DNS ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+  loop:
+    - '53'
+    - '80'
+    - '443'
+- name: Enable Deny policy and enable UFW
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    logging: 'on'
+  
+- name: Enable WireGuard
+  systemd:
+    name: wg-quick@wg0.service
+    state: started
+    enabled: yes
+    
+- name: Activating peer in on the server side
+  shell: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
+

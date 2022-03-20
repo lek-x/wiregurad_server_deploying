@@ -1,0 +1,15 @@
+# Update system CentOS
+#
+#
+- name: Update System cache [Common, RHEL family]
+  yum:
+   update_cache: yes
+  tags:
+    - update_system
+
+- name: Update System packages [Common, RHEL family]
+  yum:
+   name: "*"
+   state: present
+  tags:
+    - update_system

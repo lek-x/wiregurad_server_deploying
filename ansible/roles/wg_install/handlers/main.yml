@@ -1,0 +1,7 @@
+---
+# handlers file for wg_install
+- name: Enable WG
+  systemd:
+    name: wg-quick@wg0.service
+    state: started
+    enabled: yes

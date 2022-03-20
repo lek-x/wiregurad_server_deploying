@@ -1,0 +1,14 @@
+[Interface]
+PrivateKey = {{ pv_key }}
+Address = {{ adress_srv }}
+ListenPort = {{ wg_port }}
+SaveConfig = true
+
+
+
+PostUp = ufw route allow in on wg0 out on {{ internet_iface }}
+PostUp = iptables -t nat -I POSTROUTING -o {{ internet_iface }} -j MASQUERADE
+PostUp = ip6tables -t nat -I POSTROUTING -o {{ internet_iface }} -j MASQUERADE
+PreDown = ufw route delete allow in on wg0 out on {{ internet_iface }}
+PreDown = iptables -t nat -D POSTROUTING -o {{ internet_iface }} -j MASQUERADE
+PreDown = ip6tables -t nat -D POSTROUTING -o {{ internet_iface }} -j MASQUERADE

@@ -1,15 +1,16 @@
 ---
 
 # Install WireGuard
-- name: In WG config we use net interface
+- name: In WG config we will use net interface
   debug:
-    msg: 
+    msg:
       - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address}}"
       - "We will use network port: {{ wg_port }}"
       - "Server  subnet ip will be : {{ adress_srv }}"
       - "Peer subnet ip will be : {{ adress_peer }}"
 
 - name: Install WireGuard and resolvconf
+  become: true
   apt:
     name: "{{ item }}"
     state: present
@@ -24,60 +25,72 @@
   systemd:
     name: wg-quick@wg0.service
     state: stopped
-    
-- name: Search old configs on the server side
+
+- name: Search old configs [SERVER]
   find:
     path: /etc/wireguard
-    patterns: "*.key"
+    patterns: "*.*"
   register: old_conf
-  
-- name: Delete Search old configs on the server side
+
+- name: Delete old configs [SERVER]
   file:
     path: "{{ item }}"
     state: absent
   with_items: "{{ old_conf.files }}"
-  ignore_errors: yes
-  
-- name: Search old configs on the localhost side
+
+- name: Search old configs [LOCAL]
   find:
     path: /etc/wireguard
-    patterns: "*.key"
+    patterns: "*.*"
   register: old_conf_loc
   delegate_to: 127.0.0.1
-  
-- name: Delete old configs on the localhost side
+
+- name: Delete old configs [LOCAL]
   file:
     path: "{{ item }}"
     state: absent
   with_items: "{{ old_conf_loc.files }}"
   delegate_to: 127.0.0.1
-  ignore_errors: yes
 
 ##### Generating  server keys #####
-- name: Generate WireGuard private server key
-  shell: 'wg genkey | sudo tee /etc/wireguard/private.key'
+- name: Generate WireGuard private server key[SERVER]
+  command: wg genkey #| sudo tee /etc/wireguard/private.key
+  register: out_pvkey
 
-- name: Change permission for key
+- name: Save private key
+  lineinfile:
+    path: /etc/wireguard/private.key
+    line: "{{ out_pvkey.stdout }}"
+    create: yes
+
+- name: Change permission for key [SERVER]
   file:
     path: /etc/wireguard/private.key
     owner: root
     group: root
     mode: '0600'
 
-- name: Generate WireGuard public server key
-  shell: 'sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key'
+- name: Generate WireGuard public server key [SERVER]
+  shell: 'echo "{{ out_pvkey.stdout }}" | wg pubkey'
+  register: out_pubkey
 
-- name: Read private server key
+- name: Save pubkey key
+  lineinfile:
+    path: /etc/wireguard/public.key
+    line: "{{ out_pubkey.stdout }}"
+    create: yes
+
+- name: Read private server key[SERVER]
   slurp:
     src: /etc/wireguard/private.key
   register: pv_key_enc
 
-- name: Read pub server key
+- name: Read pub server key [SERVER]
   slurp:
     src: /etc/wireguard/public.key
   register: pub_key_enc
 
-- name: Decode pv servre key
+- name: Decode private server key
   set_fact:
     pv_key: "{{ pv_key_enc.content | b64decode }}"
 - name: Decode pub server key
@@ -86,59 +99,84 @@
 
 
 ### Generate local peer keys #####
-- name: Generate WireGuard private peer key
-  shell: 'wg genkey | sudo tee /etc/wireguard/private.key'
+- name: Generate WireGuard private peer key [LOCAL]
+  command: wg genkey
   delegate_to: 127.0.0.1
+  register: out_pvkey_local
   tags:
     - local_peer
 
-- name: Generate WireGuard public peer key
-  shell: 'sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key'
+- name: Generate WireGuard public server key [Local]
+  shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
+  register: out_pubkey_local
   tags:
     - local_peer
 
-- name: Read local peer pv key
-  set_fact:
-    pv_peer_key: "{{ lookup('file','/etc/wireguard/private.key') }}"
-    
-- name: Read local peer pub key
-  set_fact:
-    pub_peer_key: "{{ lookup('file','/etc/wireguard/public.key') }}"
+- name: Save pubkey key [Local]
+  become: true
+  become_user: root
+  lineinfile:
+    path: /etc/wireguard/public.key
+    line: "{{ out_pubkey_local.stdout }}"
+    create: yes
+  delegate_to: 127.0.0.1
 
+#- name: Read local peer pv key [LOCAL]
+#  set_fact:
+#    pv_peer_key: "{{ lookup('file','/etc/wireguard/private.key') }}"
+
+- name: Read local peer pub key [LOCAL]
+  set_fact:
+    pub_peer_key: "{{ out_pubkey_local.stdout }}"
 
 #### Render configs #####
-- name: Create WireGuard  server config file
+- name: Create WireGuard  server config file [SERVER]
   template:
     src: wg0.conf.j2
     dest: /etc/wireguard/wg0.conf
     owner: root
     mode: '0600'
-    
-- name: Create WireGuard  peer config file
+  tags:
+    - config
+
+- name: Create WireGuard  peer config file [LOCAL]
   template:
     src: wg_peer.j2
-    dest: ./wg_peer.conf
+    dest: ~/wg_peer.conf
   delegate_to: 127.0.0.1
-  
-- name: Adjust sysctl.config
+  register: local_conf_path
+  tags:
+    - config
+
+- name: Adjust sysctl.config [SERVER]
   lineinfile:
     path: /etc/sysctl.conf
     regexp: '#net\.ipv4\.ip_forward=[0-9]'
     line: net.ipv4.ip_forward=1
-    
-- name: Check sysctl and load values
+  tags:
+    - config
+
+- name: Check sysctl and load values [SERVER]
   shell: sysctl -p
+  tags:
+    - config
 
 #### Setup UFW #####
 - name: Allow SSH port
   community.general.ufw:
     rule: allow
     port: '22'
+  tags:
+    - config
+
 - name: Allow UDP WireGuard port
   community.general.ufw:
     rule: allow
     port: "{{ wg_port }}"
+  tags:
+    - config
+
 - name: Allow HTTP(s)/DNS ports
   community.general.ufw:
     rule: allow
@@ -147,18 +185,32 @@
     - '53'
     - '80'
     - '443'
+  tags:
+    - config
+
 - name: Enable Deny policy and enable UFW
   community.general.ufw:
     state: enabled
     policy: deny
     logging: 'on'
-  
-- name: Enable WireGuard
-  systemd:
-    name: wg-quick@wg0.service
-    state: started
-    enabled: yes
-    
-- name: Activating peer in on the server side
-  shell: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
+  tags:
+    - config
 
+- name: Up interface
+  shell: wg-quick up /etc/wireguard/wg0.conf
+#- name: Enable WireGuard
+#  systemd:
+#    name: wg-quick@wg0.service
+#    state: started
+#    enabled: yes
+#  tags:
+#    - config
+
+- name: Activating peer on the server side
+  command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
+  tags:
+    - config
+
+- name: Path to local config
+  debug:
+    msg: "{{ local_conf_path.dest}}"

@@ -1,0 +1,16 @@
+---
+- name: Find archive file
+    find:
+    path: ../../
+    patterns: "*.tgz"
+  register: backup
+
+- name: Copy file to the server
+  ansible.builtin.copy:
+    src: "{{ old_conf.files }}"
+    dest: /etc/wireguard
+- name: Stop wireguard
+  systemd:
+  name: wg-quick@wg0.service
+    state: started
+    enabled: yes

@@ -3,7 +3,7 @@ provider "digitalocean" {
   token = var.do_token
 }
 
-#### Import my own SSH key
+#### Import SSH key
 #resource "digitalocean_ssh_key" "default" {
 #  name       = "My_key"
 #  public_key = file(var.ssh_pub_key)
@@ -12,7 +12,6 @@ provider "digitalocean" {
 data "digitalocean_ssh_key" "default" {
   name = "My_key"
 }
-
 
 ### Create new VM
 resource "digitalocean_droplet" "VM1" {
@@ -24,7 +23,6 @@ resource "digitalocean_droplet" "VM1" {
   tags     = ["wg"]
 
 }
-
 
 resource "local_file" "inventory" {
   content = templatefile("${path.module}/inventory.tmpl",
@@ -49,11 +47,7 @@ resource "null_resource" "playbook" {
   depends_on = [time_sleep.wait_60_seconds]
 }
 
-
 # Show me public ip
 output "public_ip_server" {
   value = digitalocean_droplet.VM1.ipv4_address
 }
-
-
-

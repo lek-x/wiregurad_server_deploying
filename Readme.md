@@ -26,8 +26,23 @@ This code  deploys VM(droplet) in Digital Ocean provider, and setups Wireguard S
   ```
  terraform init
   ```
-3. Copy your SSH pub key into root of directory
-4. Edit variable ssh_pub_key (in variables.tf) according to name of your pub key
+3. Edit main.tf, uncomment block if you want to upload new ssh key and comment another block.
+ ```
+### Import SSH key or Use existing key in DO
+#resource "digitalocean_ssh_key" "default" {
+#  name       = "My_key"
+#  public_key = file(var.ssh_pub_key)
+#  depends_on=[data.digitalocean_ssh_key.default]
+#}
+
+## or Use existing key in DO
+data "digitalocean_ssh_key" "default" {
+  name = "My_key"
+
+}
+
+ ```
+4. Terraform will ask you about path of ssh private and public keys, but you cand edit variables.tf to hardcode it. Pay attention ssh private key paths is using to run ansible playbook.
 4. Check config
   ```
  terraform validate
@@ -38,17 +53,8 @@ terraform apply
 ```
 If all is ok, VM will be created, and in ansible/ directory will be inventory file.
 
-### Stage 2. Setup WireGuard
+6. Ansible playbook runs automatically
 
-1. Go to ansible/ directory
-2. You cand define your settings for WireGuard in ansible/roles/wg_install/defaults/main.yml
-4. Run command (don't forget to write your private-key name)
-
-```
- ansible-playbook wg_up.yml  --private-key ~/.ssh/your_private_key  
-```
-5. If all is OK you will get wg_peer.conf in ansible/dir
-6. Use this config file in any wireguard client
 
 
 ## License

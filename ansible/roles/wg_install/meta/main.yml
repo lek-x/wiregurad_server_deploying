@@ -10,6 +10,7 @@ galaxy_info:
      versions:
        - 21.10
        - 20.10
+       - 22.04
 
 
   galaxy_tags: ['wiregurad','vpn']

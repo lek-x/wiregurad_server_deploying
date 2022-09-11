@@ -19,7 +19,7 @@ This code  deploys VM(droplet) in Digital Ocean provider, and setups Wireguard S
 
 
 # How to
-### Stage 1. Deploy VM with terraform 
+### Deploy VM with terraform 
 1. Clone repo
 2. Add your Digital Ocean token to terraform.tfvars.example, amd rename it to terraform.tfvars
 2. Init terraform providers

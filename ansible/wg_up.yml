@@ -13,6 +13,9 @@
         vars:
           ansible_connection: local
 
+      - name: Reboot VM
+        ansible.builtin.reboot:
+
 - name: "Install WireGuard"
   hosts: wg
   gather_facts: yes

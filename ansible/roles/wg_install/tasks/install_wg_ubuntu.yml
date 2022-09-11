@@ -1,16 +1,13 @@
 ---
 
 # Install WireGuard
-- name: In WG config we use net interface
+- name: In WG config we will use net interface
   debug:
-    msg: 
+    msg:
       - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address}}"
       - "We will use network port: {{ wg_port }}"
       - "Server  subnet ip will be : {{ adress_srv }}"
       - "Peer subnet ip will be : {{ adress_peer }}"
-
-- name: Reboot VM
-  ansible.builtin.reboot:
 
 - name: Install WireGuard and resolvconf
   become: true
@@ -29,26 +26,26 @@
     name: wg-quick@wg0.service
     state: stopped
 
-- name: Search old configs on the server side
+- name: Search old configs [SERVER]
   find:
     path: /etc/wireguard
     patterns: "*.*"
   register: old_conf
 
-- name: Delete old configs on the server side
+- name: Delete old configs [SERVER]
   file:
     path: "{{ item }}"
     state: absent
   with_items: "{{ old_conf.files }}"
 
-- name: Search old configs on the localhost side
+- name: Search old configs [LOCAL]
   find:
     path: /etc/wireguard
     patterns: "*.*"
   register: old_conf_loc
   delegate_to: 127.0.0.1
 
-- name: Delete old configs on the localhost side
+- name: Delete old configs [LOCAL]
   file:
     path: "{{ item }}"
     state: absent
@@ -110,7 +107,7 @@
     - local_peer
 
 - name: Generate WireGuard public server key [Local]
-  shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey 
+  shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
   register: out_pubkey_local
   tags:
@@ -148,6 +145,7 @@
     src: wg_peer.j2
     dest: ~/wg_peer.conf
   delegate_to: 127.0.0.1
+  register: local_conf_path
   tags:
     - config
 
@@ -212,3 +210,7 @@
   command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
   tags:
     - config
+
+- name: Path to local config
+  debug:
+    msg: "{{ local_conf_path.dest}}"

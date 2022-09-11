@@ -3,23 +3,26 @@ provider "digitalocean" {
   token = var.do_token
 }
 
-#### Import SSH key
+### Import SSH key or Use existing key in DO
 #resource "digitalocean_ssh_key" "default" {
 #  name       = "My_key"
 #  public_key = file(var.ssh_pub_key)
+#  depends_on=[data.digitalocean_ssh_key.default]
 #}
 
+## or Use existing key in DO
 data "digitalocean_ssh_key" "default" {
   name = "My_key"
+
 }
 
 ### Create new VM
 resource "digitalocean_droplet" "VM1" {
-  image    = "ubuntu-22-04-x64"
+  image    = var.dorplet_ver
   name     = "wg"
   region   = "nyc1"
   size     = "s-1vcpu-1gb"
-  ssh_keys = [data.digitalocean_ssh_key.default.id] #[digitalocean_ssh_key.default.fingerprint]
+  ssh_keys = [data.digitalocean_ssh_key.default.id] #or [digitalocean_ssh_key.default.fingerprint])
   tags     = ["wg"]
 
 }
@@ -41,7 +44,7 @@ resource "time_sleep" "wait_60_seconds" {
 }
 resource "null_resource" "playbook" {
   provisioner "local-exec" {
-    command = "ansible-playbook -u root -i ansible/inventory --ssh-common-args='-o StrictHostKeyChecking=no' --private-key ~/.ssh/storemez ansible/wg_up.yml -v"
+    command = "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -u root -i ansible/inventory --ssh-common-args='-o StrictHostKeyChecking=no' --private-key ${var.ssh_private_key} ansible/wg_up.yml"
 
   }
   depends_on = [time_sleep.wait_60_seconds]

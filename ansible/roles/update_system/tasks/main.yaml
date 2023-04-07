@@ -15,16 +15,17 @@
 - name: Find  network interface name with public IP
   set_fact:
     internet_iface="{{ item }}"
-  when: hostvars[inventory_hostname]['ansible_{{item}}']['ipv4']['address'] == ansible_default_ipv4.address 
+  when: hostvars[inventory_hostname]['ansible_{{item}}']['ipv4']['address'] == ansible_default_ipv4.address
   with_items:
     - "{{ ansible_interfaces }}"
 
-- name: Update sysetm if OS is Debian [Common]
+- name: Update system cache if OS is Debian
   include_tasks: update_ubuntu.yaml
   tags:
     - update_system
   when: (ansible_facts['distribution'] == "Ubuntu") or (ansible_facts['distribution'] == "Debian")
-- name: Update sysetm if OS is RedHat [Common]
+
+- name: Update system cache if OS is RedHat
   include_tasks: update_centos.yaml
   tags:
     - update_system

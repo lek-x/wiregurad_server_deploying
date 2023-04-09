@@ -5,3 +5,14 @@
     name: wg-quick@wg0.service
     state: started
     enabled: yes
+
+- name: Enable Firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Reload Firewalld
+  systemd:
+    name: firewalld
+    state: reloaded

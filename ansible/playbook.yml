@@ -13,8 +13,8 @@
         vars:
           ansible_connection: local
 
-      - name: Reboot VM
-        ansible.builtin.reboot:
+      #- name: Reboot VM
+      #  ansible.builtin.reboot:
 
 - name: "Install WireGuard"
   hosts: wg

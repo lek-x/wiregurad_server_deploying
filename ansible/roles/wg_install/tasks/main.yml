@@ -4,9 +4,7 @@
 - name: Install Wireguard
   include_tasks: install_wg_ubuntu.yml
   when: (ansible_facts['distribution'] == "Ubuntu") or (ansible_facts['distribution'] == "Debian")
-  
-- name: Install Wireguard
-  include_tasks: install_wg_centos.yml
-  when: (ansible_facts['distribution'] == "CentOS") or (ansible_facts['distribution'] == "RedHat")
-  
 
+- name: Install Wireguard
+  include_tasks: install_wg_rocky.yml
+  when: (ansible_facts['distribution'] == "CentOS") or (ansible_facts['distribution'] == "Rocky")

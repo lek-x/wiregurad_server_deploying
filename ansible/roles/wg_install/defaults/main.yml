@@ -3,3 +3,4 @@
 wg_port: 16636
 adress_srv: 10.9.0.1/24
 adress_peer: 10.9.0.2/24
+adress_subnet: 10.9.0.0/24

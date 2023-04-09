@@ -4,19 +4,32 @@
 - name: In WG config we will use net interface
   debug:
     msg:
-      - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address}}"
+      - "We will use network interface: {{ internet_iface }}:{{ ansible_default_ipv4.address}}"
       - "We will use network port: {{ wg_port }}"
+      - "WG Subnet will be:  {{ adress_subnet }}"
       - "Server  subnet ip will be : {{ adress_srv }}"
       - "Peer subnet ip will be : {{ adress_peer }}"
 
-- name: Install WireGuard and resolvconf
-  become: true
-  apt:
-    name: "{{ item }}"
+- name: Enable wireguard module
+  lineinfile:
+    path: /etc/modules-load.d/wireguard.conf
+    line: wireguard
+    insertafter: EOF
     state: present
+    create: yes
+
+- name: Install WireGuard and packages
+  become: true
+  dnf:
+    name: "{{ item }}"
+    state: latest
   loop:
-    - wireguard
-    - resolvconf
+    - wireguard-tools
+    - epel-release
+    - elrepo-release
+    - dnf-utils
+    - python3-firewall
+    - firewalld
   tags:
     - install_wireguard
 
@@ -28,7 +41,7 @@
 
 - name: Search old configs [SERVER]
   find:
-    path: /etc/wireguard
+    path: /etc/wireguard/
     file_type: any
   register: old_conf
 
@@ -53,7 +66,7 @@
   delegate_to: 127.0.0.1
 
 ##### Generating  server keys #####
-- name: Generate WireGuard private server key[SERVER]
+- name: Generate WireGuard private server key [SERVER]
   command: wg genkey #| sudo tee /etc/wireguard/private.key
   register: out_pvkey
 
@@ -159,43 +172,48 @@
   tags:
     - config
 
-#### Setup UFW #####
-- name: Allow SSH port
-  community.general.ufw:
-    rule: allow
-    port: '22'
-  tags:
-    - config
+#### Setup Firewalld #####
+- name: Enable Firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
 
-- name: Allow UDP WireGuard port
-  community.general.ufw:
-    rule: allow
-    port: "{{ wg_port }}"
-  tags:
-    - config
-
-- name: Allow HTTP(s)/DNS ports
-  community.general.ufw:
-    rule: allow
-    port: "{{ item }}"
-  loop:
-    - '53'
-    - '80'
-    - '443'
-  tags:
-    - config
-
-- name: Enable Deny policy and enable UFW
-  community.general.ufw:
+- name: Add WG port to internal zone
+  ansible.posix.firewalld:
+    zone: internal
+    interface: wg0
+    permanent: true
     state: enabled
-    policy: deny
-    logging: 'on'
+
+- name: Enable masquerading
+  ansible.posix.firewalld:
+    rich_rule: rule family=ipv4 source address={{ adress_subnet }} masquerade
+    zone: public
+    permanent: true
+    state: enabled
+    immediate: yes
+
+- name: Allow SSH port
+  ansible.posix.firewalld:
+    port: 161-162/udp
+    permanent: true
+    state: enabled
+  loop:
+    - 22
+    - "{{ wg_port }}"
+    - 53
+    - 80
+    - 443
   tags:
     - config
+  notify:
+    - Reload Firewalld
 
 - name: Up interface
-  shell: wg-quick up /etc/wireguard/wg0.conf
-
+  command:
+    cmd: wg-quick up /etc/wireguard/wg0.conf
+  tags: ['up']
 #- name: Enable WireGuard
 #  systemd:
 #    name: wg-quick@wg0.service
@@ -208,6 +226,8 @@
   command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
   tags:
     - config
+    - up
+
 
 - name: Path to local config
   debug:

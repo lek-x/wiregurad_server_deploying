@@ -54,7 +54,7 @@ resource "local_file" "pem_file" {
 
 resource "null_resource" "playbook" {
   provisioner "local-exec" {
-    command = "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -u root -i ansible/inventory --ssh-common-args='-o StrictHostKeyChecking=no' --private-key ~/.ssh/${local.ssh_filename}.pem ansible/wg_up.yml"
+    command = "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -u root -i ansible/inventory --ssh-common-args='-o StrictHostKeyChecking=no' --private-key ~/.ssh/${local.ssh_filename}.pem ansible/playbook.yml"
 
   }
   depends_on = [time_sleep.wait_30_seconds]

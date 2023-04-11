@@ -9,13 +9,14 @@
     - "memory":  "{{ ansible_memtotal_mb }}"
     - "vCPU": "{{ ansible_processor_vcpus }}"
     - "Distribution": "{{ ansible_distribution }}"
-    - "interface": '{{ ansible_facts.interfaces[1] }}'
+    - "interfaces": "{{ ansible_facts.interfaces }}"
   tags:
     - update_system
-- name: Find  network interface name with public IP
+
+- name: Find network interface name with public IP
   set_fact:
-    internet_iface="{{ item }}"
-  when: hostvars[inventory_hostname]['ansible_{{item}}']['ipv4']['address'] == ansible_default_ipv4.address
+    internet_iface: "{{ item }}"
+  when: hostvars[inventory_hostname]['ansible_%s' | format(item) ]['ipv4']['address'] == ansible_default_ipv4.address
   with_items:
     - "{{ ansible_interfaces }}"
 

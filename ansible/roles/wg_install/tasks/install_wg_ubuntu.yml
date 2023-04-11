@@ -6,10 +6,11 @@
     msg:
       - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address}}"
       - "We will use network port: {{ wg_port }}"
+      - "WG Subnet will be:  {{ adress_subnet }}"
       - "Server  subnet ip will be : {{ adress_srv }}"
       - "Peer subnet ip will be : {{ adress_peer }}"
 
-- name: Install WireGuard and resolvconf
+- name: Install WireGuard and resolvconf [REMOTE SERVER]
   become: true
   apt:
     name: "{{ item }}"
@@ -21,18 +22,18 @@
     - install_wireguard
 
 ### Remove old configs #####
-- name: Make sure that service WG is stopped
+- name: Make sure that service WG is stopped [REMOTE SERVER]
   systemd:
     name: wg-quick@wg0.service
     state: stopped
 
-- name: Search old configs [SERVER]
+- name: Search old configs [REMOTE SERVER]
   find:
     path: /etc/wireguard
     file_type: any
   register: old_conf
 
-- name: Delete old configs [SERVER]
+- name: Delete old configs [REMOTE SERVER]
   file:
     path: "{{ item.path }}"
     state: absent
@@ -53,24 +54,24 @@
   delegate_to: 127.0.0.1
 
 ##### Generating  server keys #####
-- name: Generate WireGuard private server key[SERVER]
-  command: wg genkey #| sudo tee /etc/wireguard/private.key
+- name: Generate WireGuard private server key [REMOTE SERVER]
+  command: wg genkey
   register: out_pvkey
 
-- name: Save private key
+- name: Save private key [REMOTE SERVER]
   lineinfile:
     path: /etc/wireguard/private.key
     line: "{{ out_pvkey.stdout }}"
     create: yes
 
-- name: Change permission for key [SERVER]
+- name: Change permission for key [REMOTE SERVER]
   file:
     path: /etc/wireguard/private.key
     owner: root
     group: root
     mode: '0600'
 
-- name: Generate WireGuard public server key [SERVER]
+- name: Generate WireGuard public server key [REMOTE SERVER]
   shell: 'echo "{{ out_pvkey.stdout }}" | wg pubkey'
   register: out_pubkey
 
@@ -80,12 +81,12 @@
     line: "{{ out_pubkey.stdout }}"
     create: yes
 
-- name: Read private server key[SERVER]
+- name: Read private server key [REMOTE SERVER]
   slurp:
     src: /etc/wireguard/private.key
   register: pv_key_enc
 
-- name: Read pub server key [SERVER]
+- name: Read pub server key [REMOTE SERVER]
   slurp:
     src: /etc/wireguard/public.key
   register: pub_key_enc
@@ -106,14 +107,14 @@
   tags:
     - local_peer
 
-- name: Generate WireGuard public server key [Local]
+- name: Generate WireGuard public server key [LOCAL]
   shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
   register: out_pubkey_local
   tags:
     - local_peer
 
-- name: Save pubkey key [Local]
+- name: Save pubkey key [LOCAL]
   become: true
   become_user: root
   lineinfile:
@@ -131,7 +132,7 @@
     pub_peer_key: "{{ out_pubkey_local.stdout }}"
 
 #### Render configs #####
-- name: Create WireGuard  server config file [SERVER]
+- name: Create WireGuard  server config file [REMOTE SERVER]
   template:
     src: wg0.conf.j2
     dest: /etc/wireguard/wg0.conf
@@ -149,7 +150,7 @@
   tags:
     - config
 
-- name: Adjust sysctl.config [SERVER]
+- name: Adjust sysctl.config [REMOTE SERVER]
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: '1'
@@ -160,21 +161,21 @@
     - config
 
 #### Setup UFW #####
-- name: Allow SSH port
+- name: Allow SSH port [REMOTE SERVER]
   community.general.ufw:
     rule: allow
     port: '22'
   tags:
     - config
 
-- name: Allow UDP WireGuard port
+- name: Allow UDP WireGuard port [REMOTE SERVER]
   community.general.ufw:
     rule: allow
     port: "{{ wg_port }}"
   tags:
     - config
 
-- name: Allow HTTP(s)/DNS ports
+- name: Allow HTTP(s)/DNS ports [REMOTE SERVER]
   community.general.ufw:
     rule: allow
     port: "{{ item }}"
@@ -185,7 +186,7 @@
   tags:
     - config
 
-- name: Enable Deny policy and enable UFW
+- name: Enable Deny policy and enable UFW [REMOTE SERVER]
   community.general.ufw:
     state: enabled
     policy: deny
@@ -193,7 +194,7 @@
   tags:
     - config
 
-- name: Up interface
+- name: Up interface [REMOTE SERVER]
   shell: wg-quick up /etc/wireguard/wg0.conf
 
 #- name: Enable WireGuard
@@ -204,7 +205,7 @@
 #  tags:
 #    - config
 
-- name: Activating peer on the server side
+- name: Activating peer on the server side [REMOTE SERVER]
   command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
   tags:
     - config

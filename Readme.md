@@ -2,37 +2,74 @@
 
 ## Description
 
-This code  deploys VM(droplet) in Digital Ocean provider, and setups Wireguard Server. It takes 10 min to deploy WireGuard Server
+This code  deploys small VM in Digital Ocean provider, and setups Wireguard Server with generating keys and config. It takes ~5 min to deploy WireGuard Server.
 
 
 ## Requrements:
-  - Installed Wireguard on the host OS
+  - Installed Wireguard on the host OS for generating keys
   - Terraform >=1.0.4
   - Ansible core >= 2.0
 
 
-## Tested with:
-  - Wireguard Client Windows 11
-  - Keentic Viva Router
+## Tested with Wireguard Client on:
+  - Windows 11
+  - Keentic Viva/Giga Router
+  - iOS > 12
+  - Andorid > 11
 
 
 # How to
-### Deploy VM with terraform
+### Using make
+
+
+1. Init modules
+```
+make init
+```
+
+2. Plan infrasrtucture with passing arguments **reg**, **img**
+
+```
+make plan reg=eu img=rocky
+```
+
+3. Deploy infrastructure with passing arguments **reg**, **img**. Without any confirmations
+```
+make apply reg=eu img=rocky
+```
+
+4. Export private ssh key (name my_ssh.key)
+```
+make key
+```
+
+5. Destroy infrastructure. Without any confirmations
+```
+make destroy
+```
+
+### Using terraform
 1. Clone repo
 2. Add your Digital Ocean token to **terraform.tfvars.example**, amd rename it to **terraform.tfvars**
 3. Init terraform providers
   ```
  terraform init
   ```
-4. Check config
+1. Plan your infrastructure
   ```
-   terraform validate
+   terraform plan -var region=eu -var image=rocky
   ```
-5. Apply configuration
+1. Apply configuration
   ```
- terraform apply
+ terraform apply -var region=eu -var image=rocky
   ```
-6. Ansible playbook runs automatically,  **wg_peer.conf** file will be saved in current directory. Use file in your wiregurag client
+1. Ansible playbook runs automatically,  **wg_peer.conf** file will be saved in current directory. Use this file in your wiregurag client.
+
+
+## Variables
+
+region: usa=nyc1 (New York), eu=fra1 (Frankfurt), ln=lon1 (London)
+image: ubuntu=ubuntu-22-10-x64, rocky=rockylinux-9-x64
 
 
 

@@ -51,14 +51,14 @@
     state: absent
   with_items: "{{ old_conf.files }}"
 
-- name: Search old configs [LOCAL]
+- name: Search old local configs [LOCAL]
   find:
     path: /etc/wireguard
     file_type: any
   register: old_conf_loc
   delegate_to: 127.0.0.1
 
-- name: Delete old configs [LOCAL]
+- name: Delete old local configs [LOCAL]
   file:
     path: "{{ item.path }}"
     state: absent
@@ -66,39 +66,39 @@
   delegate_to: 127.0.0.1
 
 ##### Generating  server keys #####
-- name: Generate WireGuard private server key [SERVER]
+- name: Generate WireGuard private server key [REMOTE SERVER]
   command: wg genkey #| sudo tee /etc/wireguard/private.key
   register: out_pvkey
 
-- name: Save private key
+- name: Save private key on the server [REMOTE SERVER]
   lineinfile:
     path: /etc/wireguard/private.key
     line: "{{ out_pvkey.stdout }}"
     create: yes
 
-- name: Change permission for key [SERVER]
+- name: Change permission for key [REMOTE SERVER]
   file:
     path: /etc/wireguard/private.key
     owner: root
     group: root
     mode: '0600'
 
-- name: Generate WireGuard public server key [SERVER]
+- name: Generate WireGuard public server key [REMOTE SERVER]
   shell: 'echo "{{ out_pvkey.stdout }}" | wg pubkey'
   register: out_pubkey
 
-- name: Save pubkey key
+- name: Save pubkey key [REMOTE SERVER]
   lineinfile:
     path: /etc/wireguard/public.key
     line: "{{ out_pubkey.stdout }}"
     create: yes
 
-- name: Read private server key[SERVER]
+- name: Read private server key [REMOTE SERVER]
   slurp:
     src: /etc/wireguard/private.key
   register: pv_key_enc
 
-- name: Read pub server key [SERVER]
+- name: Read pub server key [REMOTE SERVER]
   slurp:
     src: /etc/wireguard/public.key
   register: pub_key_enc
@@ -119,14 +119,14 @@
   tags:
     - local_peer
 
-- name: Generate WireGuard public server key [Local]
+- name: Generate WireGuard public server key [LOCAL]
   shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
   register: out_pubkey_local
   tags:
     - local_peer
 
-- name: Save pubkey key [Local]
+- name: Save pubkey key [LOCAL]
   become: true
   become_user: root
   lineinfile:
@@ -144,7 +144,7 @@
     pub_peer_key: "{{ out_pubkey_local.stdout }}"
 
 #### Render configs #####
-- name: Create WireGuard  server config file [SERVER]
+- name: Create WireGuard  server config file [REMOTE SERVER]
   template:
     src: wg0.conf.j2
     dest: /etc/wireguard/wg0.conf
@@ -153,7 +153,7 @@
   tags:
     - config
 
-- name: Create WireGuard  peer config file [LOCAL]
+- name: Create WireGuard peer config file [LOCAL]
   template:
     src: wg_peer.j2
     dest: ./wg_peer.conf
@@ -162,7 +162,7 @@
   tags:
     - config
 
-- name: Adjust sysctl.config [SERVER]
+- name: Adjust sysctl.config [REMOTE SERVER]
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: '1'
@@ -173,20 +173,20 @@
     - config
 
 #### Setup Firewalld #####
-- name: Enable Firewalld
+- name: Enable Firewalld [REMOTE SERVER]
   systemd:
     name: firewalld
     state: started
     enabled: yes
 
-- name: Add WG port to internal zone
+- name: Add WG port to internal zone [REMOTE SERVER]
   ansible.posix.firewalld:
     zone: internal
     interface: wg0
     permanent: true
     state: enabled
 
-- name: Enable masquerading
+- name: Enable masquerading [REMOTE SERVER]
   ansible.posix.firewalld:
     rich_rule: rule family=ipv4 source address={{ adress_subnet }} masquerade
     zone: public
@@ -194,7 +194,7 @@
     state: enabled
     immediate: yes
 
-- name: Allow SSH port
+- name: Allow SSH port [REMOTE SERVER]
   ansible.posix.firewalld:
     port: 161-162/udp
     permanent: true
@@ -210,10 +210,11 @@
   notify:
     - Reload Firewalld
 
-- name: Up interface
+- name: Up interface [REMOTE SERVER]
   command:
     cmd: wg-quick up /etc/wireguard/wg0.conf
   tags: ['up']
+
 #- name: Enable WireGuard
 #  systemd:
 #    name: wg-quick@wg0.service
@@ -222,13 +223,12 @@
 #  tags:
 #    - config
 
-- name: Activating peer on the server side
+- name: Activating peer on the server side [REMOTE SERVER]
   command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
   tags:
     - config
     - up
 
-
-- name: Path to local config
+- name: Path to local config [LOCAL]
   debug:
     msg: "{{ local_conf_path.dest}}"

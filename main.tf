@@ -1,7 +1,10 @@
 #### Describe provider
 locals {
-  ssh_filename = "usa"
+  ssh_filename = "key"
+  region       = (var.region == "usa" ? "nyc1" : (var.region == "eu" ? "fra1" : "lon1"))
+  image        = (var.image == "ubuntu" ? "ubuntu-22-10-x64" : "rockylinux-9-x64")
 }
+
 
 provider "digitalocean" {
   token = var.do_token
@@ -20,9 +23,9 @@ resource "digitalocean_ssh_key" "default" {
 
 ### Create new VM
 resource "digitalocean_droplet" "VM1" {
-  image    = var.dorplet_ver
+  image    = local.image
   name     = "wg"
-  region   = "nyc1"
+  region   = local.region
   size     = "s-1vcpu-1gb"
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
   tags     = ["wg"]

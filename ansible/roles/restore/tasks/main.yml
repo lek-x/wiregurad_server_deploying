@@ -1,6 +1,6 @@
 ---
 - name: Find archive file
-    find:
+  find:
     path: ../../
     patterns: "*.tgz"
   register: backup
@@ -11,6 +11,6 @@
     dest: /etc/wireguard
 - name: Stop wireguard
   systemd:
-  name: wg-quick@wg0.service
+    name: wg-quick@wg0.service
     state: started
     enabled: yes

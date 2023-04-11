@@ -1,5 +1,5 @@
 galaxy_info:
-  author: Roman 
+  author: Roman
   description: DevOps
   license: license (GPL-2.0-or-later, MIT, etc)
 
@@ -14,4 +14,3 @@ galaxy_info:
 
 
   galaxy_tags: ['wiregurad','vpn']
-

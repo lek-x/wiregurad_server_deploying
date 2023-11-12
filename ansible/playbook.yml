@@ -1,5 +1,5 @@
 - name: "Wait SSH"
-  hosts: wg
+  hosts: all
   gather_facts: yes
   tasks:
       - name: Wait 300 seconds for port 22 to become open and contain "OpenSSH"
@@ -17,9 +17,9 @@
       #  ansible.builtin.reboot:
 
 - name: "Install WireGuard"
-  hosts: wg
+  hosts: all
   gather_facts: yes
   become: true
   roles:
-  - update_system
-  - wg_install
+    - update_system
+    - wg_install

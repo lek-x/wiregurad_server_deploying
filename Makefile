@@ -1,4 +1,4 @@
-.PHONY: plan destroy apply validate key init init_env
+.PHONY: plan destroy apply validate key init init_env quick_start
 name ?= dev
 
 init_env:
@@ -7,7 +7,7 @@ init_env:
 	pre-commit install
 
 space:
-	terraform --chdir=terraform workspace new $(name)
+	terraform -chdir=terraform workspace new $(name)
 
 select:
 	terraform workspace select $(name)
@@ -48,5 +48,7 @@ key:
 	terraform  -chdir=terraform/ output -raw private_key > my_ssh.key
 
 clean:
-	@rm -rf ./.terraform.lock.hcl ./.terraform
+	@rm -rf terraform/.terraform.lock.hcl terraform/.terraform terraform/terraform.tfstate.d
 	@echo 'Cleaning done'
+
+quick_start: init_env space init plan

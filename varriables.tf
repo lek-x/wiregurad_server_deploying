@@ -14,3 +14,8 @@ variable "size" {
   type    = string
   default = "s-1vcpu-1gb"
 }
+
+variable "root_pass" {
+  type = string
+  # sensitive = true
+}

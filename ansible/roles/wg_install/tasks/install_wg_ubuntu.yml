@@ -31,7 +31,7 @@
     state: stopped
   when: 
     - not ansible_check_mode
-    - status_wg_quick.state.ActiveState == "active"
+    - status_wg_quick.status.ActiveState == "active"
 
 - name: Search old configs [REMOTE SERVER]
   find:
@@ -45,10 +45,10 @@
     state: absent
   with_items: "{{ old_conf.files }}"
 
-- name: Check if if old local configs are present [LOCAL]
+- name: Check if old local configs are present [LOCAL]
   stat:
     path: /etc/wireguard
-  register: old_conf_exis
+  register: old_conf_exist
   when:
     - not ansible_check_mode
 
@@ -69,7 +69,7 @@
       delegate_to: 127.0.0.1
   when:
     - not ansible_check_mode
-    - old_conf_existstat.exists
+    - old_conf_exist.stat.exists
 
 ##### Generating  server keys #####
 - name: Generate WireGuard private server key [REMOTE SERVER]
@@ -93,7 +93,7 @@
     - not ansible_check_mode
 
 - name: Generate WireGuard public server key [REMOTE SERVER]
-  shell: 'echo "{{ out_pvkey.stdout }}" | wg pubkey'
+  shell: 'echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
   register: out_pubkey_server
   changed_when: out_pubkey_server.rc != 2
   when:
@@ -102,7 +102,7 @@
 - name: Save pubkey key
   lineinfile:
     path: /etc/wireguard/public.key
-    line: "{{ out_pubkey.stdout }}"
+    line: "{{ out_pubkey_server.stdout }}"
     create: yes
   when:
     - not ansible_check_mode
@@ -212,7 +212,7 @@
 
 - name: Enable masquerading PART2 [REMOTE SERVER]
   blockinfile:
-    path: /etc/default/ufw
+    path: /etc/ufw/before.rules
     insertafter: EOF
     block: |
       # NAT
@@ -221,8 +221,6 @@
       :POSTROUTING ACCEPT [0:0]
       -A POSTROUTING -s {{ adress_subnet }} -o {{ internet_iface }} -j MASQUERADE
       COMMIT
-  notify:
-    - Reload UFW
 
 #### Setup UFW #####
 - name: Allow ports [REMOTE SERVER]

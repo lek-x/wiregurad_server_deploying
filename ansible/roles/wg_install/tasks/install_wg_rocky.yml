@@ -10,6 +10,38 @@
       - "Server subnet ip will be : {{ adress_srv }}"
       - "Peer subnet ip will be : {{ adress_peer }}"
 
+- name: Check for swap
+  stat:
+    path: /mnt/2GB.swap
+  register: swap_ex
+
+- name: Addin swap for low memmory VMs
+  block:
+    - name: Enable swap 1
+      command: dd if=/dev/zero of=/mnt/2GB.swap count=2048 bs=1024K
+      register: dd_st
+      changed_when: dd_st.rc != 2
+
+    - name:  Enable swap 2
+      command: mkswap /mnt/2GB.swap
+      register: mkswap_st
+      changed_when: mkswap_st.rc != 2
+
+    - name:  Enable swap 3
+      file:
+        path: /mnt/2GB.swap
+        mode: '0600'
+        owner: root
+        group: root
+
+    - name:  Enable swap 4
+      command: swapon /mnt/2GB.swap
+      register: swapon_st
+      changed_when: swapon_st.rc != 2
+  when: 
+    - ansible_memtotal_mb < 2500
+    - not swap_ex.stat.exists
+
 - name: Enable wireguard module
   lineinfile:
     path: /etc/modules-load.d/wireguard.conf
@@ -17,6 +49,12 @@
     insertafter: EOF
     state: present
     create: yes
+
+- name: Enable Wireguard module right now
+  command: modprobe wireguard
+  become: true
+  register: enable_wg
+  changed_when: enable_wg.rc != 2
 
 - name: Install WireGuard and packages
   become: true
@@ -31,12 +69,15 @@
   systemd:
     name: wg-quick@wg0.service
   register: status_wg_quick
+  when: not ansible_check_mode
 
 - name: Make sure that service WG is stopped
   systemd:
     name: wg-quick@wg0.service
     state: stopped
-  when: status_wg_quick.state.ActiveState == "active"
+  when: 
+    - not ansible_check_mode
+    - status_wg_quick.status.ActiveState == "active"
 
 - name: Search old configs [SERVER]
   find:
@@ -54,10 +95,15 @@
   stat:
     path: /etc/wireguard
   register: old_conf_exist
+  when:
+    - not ansible_check_mode
 
-- name: Removing old local conffis [LOCAL]
+- name: Removing old local conffigs [LOCAL]
+  become: true
   block:
     - name: Search old local configs [LOCAL]
+      become: true
+      become_user: root
       find:
         path: /etc/wireguard
         file_type: any
@@ -70,7 +116,9 @@
         state: absent
       with_items: "{{ old_conf_loc.files }}"
       delegate_to: 127.0.0.1
-  when: old_conf_existstat.exists
+  when:
+    - not ansible_check_mode
+    - old_conf_exist.stat.exists
 
 ##### Generating  server keys #####
 - name: Generate WireGuard private server key [REMOTE SERVER]
@@ -82,7 +130,7 @@
   lineinfile:
     path: /etc/wireguard/private.key
     line: "{{ out_pvkey_server.stdout }}"
-    create: yes
+    create: true
 
 - name: Change permission for key [REMOTE SERVER]
   file:
@@ -90,27 +138,37 @@
     owner: root
     group: root
     mode: '0600'
+  when:
+    - not ansible_check_mode
 
 - name: Generate WireGuard public server key [REMOTE SERVER]
-  shell: 'echo "{{ out_pvkey.stdout }}" | wg pubkey'
+  shell: 'echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
   register: out_pubkey_server
   changed_when: out_pubkey_server.rc != 2
+  when:
+    - not ansible_check_mode
 
 - name: Save pubkey key [REMOTE SERVER]
   lineinfile:
     path: /etc/wireguard/public.key
     line: "{{ out_pubkey_server.stdout }}"
     create: yes
+  when:
+    - not ansible_check_mode
 
 - name: Read private server key [REMOTE SERVER]
   slurp:
     src: /etc/wireguard/private.key
   register: pv_key_server_enc
+  when:
+    - not ansible_check_mode
 
 - name: Read pub server key [REMOTE SERVER]
   slurp:
     src: /etc/wireguard/public.key
   register: pub_key_server_enc
+  when:
+    - not ansible_check_mode
 
 ### These vars will be used for rendering config file
 - name: Decode private server key
@@ -120,6 +178,8 @@
 - name: Decode pub server key
   set_fact:
     pub_key: "{{ pub_key_server_enc.content | b64decode }}"
+  when:
+    - not ansible_check_mode
 
 ### Generate local peer keys #####
 - name: Generate WireGuard private peer key [LOCAL]
@@ -133,9 +193,11 @@
   shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
   register: out_pubkey_local
-  chanhed_when: out_pubkey_local.rc != 2
+  changed_when: out_pubkey_local.rc != 2
   tags:
     - local_peer
+  when:
+    - not ansible_check_mode
 
 - name: Save pubkey key [LOCAL]
   become: true
@@ -145,10 +207,14 @@
     line: "{{ out_pubkey_local.stdout }}"
     create: true
   delegate_to: 127.0.0.1
+  when:
+    - not ansible_check_mode
 
 - name: Read local peer pub key [LOCAL]
   set_fact:
     pub_peer_key: "{{ out_pubkey_local.stdout }}"
+  when:
+    - not ansible_check_mode
 
 #### Render configs #####
 - name: Create WireGuard  server config file [REMOTE SERVER]
@@ -159,6 +225,8 @@
     mode: '0600'
   tags:
     - config
+  when:
+    - not ansible_check_mode
 
 - name: Create WireGuard peer config file [LOCAL]
   template:
@@ -168,14 +236,19 @@
   register: local_conf_path
   tags:
     - config
+  when:
+    - not ansible_check_mode
 
 - name: Adjust sysctl.config [REMOTE SERVER]
   ansible.posix.sysctl:
-    name: net.ipv4.ip_forward
+    name: "{{ item }}"
     value: '1'
     sysctl_set: true
     state: present
     reload: true
+  loop:
+    - net.ipv6.conf.all.forwarding
+    - net.ipv4.ip_forward
   tags:
     - config
 
@@ -199,7 +272,35 @@
     zone: public
     permanent: true
     state: enabled
-    immediate: yes
+    immediate: true
+
+- name: Add wireguard services
+  ansible.posix.firewalld:
+    zone: public
+    permanent: true
+    service: wireguard
+    state: enabled
+    immediate: true
+
+- name: Add wireguard services
+  ansible.posix.firewalld:
+    zone: public
+    permanent: true
+    service: wireguard
+    state: enabled
+    immediate: true
+
+- name: Create batch of rules
+  command: "{{ item }}"
+  register: policy
+  changed_when: policy.rc != 2
+  loop:
+    - firewall-cmd --new-policy internal-public --permanent
+    - firewall-cmd --policy internal-public --add-ingress-zone=internal --permanent
+    - firewall-cmd --policy internal-public --add-egress-zone=public --permanent
+    - firewall-cmd --policy internal-public --set-target=ACCEPT --permanent
+  notify:
+    - Reload Firewalld
 
 - name: Allow ports [REMOTE SERVER]
   ansible.posix.firewalld:
@@ -207,11 +308,11 @@
     permanent: true
     state: enabled
   loop:
-    - 22
-    - "{{ wg_port }}"
-    - 53
-    - 80
-    - 443
+    - 22/tcp
+    - "{{ wg_port }}/udp"
+    - 53/tcp
+    - 80/tcp
+    - 443/tcp
   tags:
     - config
   notify:
@@ -232,11 +333,6 @@
   systemd:
     name: wg-quick@wg0.service
     state: started
-
-# - name: Up interface [REMOTE SERVER]
-#   command:
-#     cmd: wg-quick up /etc/wireguard/wg0.conf
-#   tags: ['up']
 
 - name: Activating peer on the server side [REMOTE SERVER]
   command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"

@@ -16,3 +16,4 @@ base_packages_rocky:
 base_packages_ubuntu:
   - wireguard
   - resolvconf
+  - ufw

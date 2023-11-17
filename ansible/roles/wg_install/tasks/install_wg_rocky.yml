@@ -4,7 +4,7 @@
 - name: For WireGuard config we will use net interface
   debug:
     msg:
-      - "We will use network interface: {{ internet_iface }}:{{ ansible_default_ipv4.address}}"
+      - "We will use network interface: {{ internet_iface }}:{{ ansible_default_ipv4.address }}"
       - "We will use network port: {{ wg_port }}"
       - "WG Subnet will be:  {{ adress_subnet }}"
       - "Server subnet ip will be : {{ adress_srv }}"
@@ -16,6 +16,9 @@
   register: swap_ex
 
 - name: Addin swap for low memmory VMs
+  when:
+    - ansible_memtotal_mb < 2500
+    - not swap_ex.stat.exists
   block:
     - name: Enable swap 1
       command: dd if=/dev/zero of=/mnt/2GB.swap count=2048 bs=1024K
@@ -38,9 +41,6 @@
       command: swapon /mnt/2GB.swap
       register: swapon_st
       changed_when: swapon_st.rc != 2
-  when: 
-    - ansible_memtotal_mb < 2500
-    - not swap_ex.stat.exists
 
 - name: Enable wireguard module
   lineinfile:
@@ -48,7 +48,8 @@
     line: wireguard
     insertafter: EOF
     state: present
-    create: yes
+    create: true
+    mode: "0640"
 
 - name: Enable Wireguard module right now
   command: modprobe wireguard
@@ -60,7 +61,7 @@
   become: true
   dnf:
     name: "{{ base_packages_rocky }}"
-    state: latest
+    state: present
   tags:
     - install_wireguard
 
@@ -75,7 +76,7 @@
   systemd:
     name: wg-quick@wg0.service
     state: stopped
-  when: 
+  when:
     - not ansible_check_mode
     - status_wg_quick.status.ActiveState == "active"
 
@@ -99,6 +100,9 @@
     - not ansible_check_mode
 
 - name: Removing old local conffigs [LOCAL]
+  when:
+    - not ansible_check_mode
+    - old_conf_exist.stat.exists
   become: true
   block:
     - name: Search old local configs [LOCAL]
@@ -116,9 +120,6 @@
         state: absent
       with_items: "{{ old_conf_loc.files }}"
       delegate_to: 127.0.0.1
-  when:
-    - not ansible_check_mode
-    - old_conf_exist.stat.exists
 
 ##### Generating  server keys #####
 - name: Generate WireGuard private server key [REMOTE SERVER]
@@ -131,6 +132,7 @@
     path: /etc/wireguard/private.key
     line: "{{ out_pvkey_server.stdout }}"
     create: true
+    mode: "0640"
 
 - name: Change permission for key [REMOTE SERVER]
   file:
@@ -142,7 +144,7 @@
     - not ansible_check_mode
 
 - name: Generate WireGuard public server key [REMOTE SERVER]
-  shell: 'echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
+  shell: 'set -o pipefail && echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
   register: out_pubkey_server
   changed_when: out_pubkey_server.rc != 2
   when:
@@ -152,7 +154,8 @@
   lineinfile:
     path: /etc/wireguard/public.key
     line: "{{ out_pubkey_server.stdout }}"
-    create: yes
+    create: true
+    mode: "0640"
   when:
     - not ansible_check_mode
 
@@ -186,11 +189,12 @@
   command: wg genkey
   delegate_to: 127.0.0.1
   register: out_pvkey_local
+  changed_when: out_pvkey_local.rc != 2
   tags:
     - local_peer
 
 - name: Generate WireGuard public server key [LOCAL]
-  shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
+  shell: set -o pipefail && echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
   register: out_pubkey_local
   changed_when: out_pubkey_local.rc != 2
@@ -206,6 +210,7 @@
     path: /etc/wireguard/public.key
     line: "{{ out_pubkey_local.stdout }}"
     create: true
+    mode: "0640"
   delegate_to: 127.0.0.1
   when:
     - not ansible_check_mode
@@ -222,7 +227,7 @@
     src: wg0.conf.j2
     dest: /etc/wireguard/wg0.conf
     owner: root
-    mode: '0600'
+    mode: '0640'
   tags:
     - config
   when:
@@ -232,6 +237,7 @@
   template:
     src: wg_peer.j2
     dest: ./wg_peer.conf
+    mode: "0640"
   delegate_to: 127.0.0.1
   register: local_conf_path
   tags:
@@ -257,7 +263,7 @@
   systemd:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Add WG port to internal zone [REMOTE SERVER]
   ansible.posix.firewalld:
@@ -321,7 +327,7 @@
 - name: Enable WireGuard
   systemd:
     name: wg-quick@wg0.service
-    enabled: yes
+    enabled: true
   tags:
     - config
 
@@ -336,10 +342,12 @@
 
 - name: Activating peer on the server side [REMOTE SERVER]
   command: sudo wg set wg0 peer "{{ pub_peer_key }}" allowed-ips "{{ adress_peer }}"
+  register: activate
+  changed_when: activate.rc != 2
   tags:
     - config
     - up
 
 - name: Path to local config [LOCAL]
   debug:
-    msg: "{{ local_conf_path.dest}}"
+    msg: "{{ local_conf_path.dest }}"

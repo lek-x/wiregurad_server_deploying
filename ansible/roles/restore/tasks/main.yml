@@ -9,8 +9,9 @@
   ansible.builtin.copy:
     src: "{{ old_conf.files }}"
     dest: /etc/wireguard
+    mode: "0640"
 - name: Stop wireguard
   systemd:
     name: wg-quick@wg0.service
     state: started
-    enabled: yes
+    enabled: true

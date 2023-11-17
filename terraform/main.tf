@@ -39,7 +39,7 @@ resource "local_file" "inventory" {
       droplet_name = digitalocean_droplet.VM1.name
     }
   )
-  filename   = "${path.module}/ansible/inventory"
+  filename   = "${path.module}../ansible/inventory"
   depends_on = [digitalocean_droplet.VM1]
 }
 
@@ -52,12 +52,12 @@ resource "local_sensitive_file" "pem_file" {
   filename             = pathexpand("~/.ssh/${local.ssh_filename}.pem")
   file_permission      = "600"
   directory_permission = "700"
-  content    = tls_private_key.ssh_key.private_key_pem
+  content              = tls_private_key.ssh_key.private_key_pem
 }
 
 resource "null_resource" "playbook" {
   provisioner "local-exec" {
-    command = "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -i ansible/inventory  -u root --ssh-common-args='-o StrictHostKeyChecking=no' --private-key ~/.ssh/${local.ssh_filename}.pem ansible/playbook.yml -e ansible_password=${var.root_pass}"
+    command = "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook -i ,,/ansible/inventory  -u root --ssh-common-args='-o StrictHostKeyChecking=no' --private-key ~/.ssh/${local.ssh_filename}.pem ../ansible/playbook.yml -e ansible_password=${var.root_pass}"
 
   }
   depends_on = [time_sleep.wait_30_seconds]

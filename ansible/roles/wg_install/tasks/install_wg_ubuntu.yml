@@ -4,7 +4,7 @@
 - name: For WireGuard config we will use net interface
   debug:
     msg:
-      - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address}}"
+      - "We will use network interface: {{ internet_iface }}-{{ ansible_default_ipv4.address }}"
       - "We will use network port: {{ wg_port }}"
       - "WG Subnet will be:  {{ adress_subnet }}"
       - "Server  subnet ip will be : {{ adress_srv }}"
@@ -29,7 +29,7 @@
   systemd:
     name: wg-quick@wg0.service
     state: stopped
-  when: 
+  when:
     - not ansible_check_mode
     - status_wg_quick.status.ActiveState == "active"
 
@@ -53,6 +53,9 @@
     - not ansible_check_mode
 
 - name: Removing old local conffis [LOCAL]
+  when:
+    - not ansible_check_mode
+    - old_conf_exist.stat.exists
   block:
     - name: Search old configs [LOCAL]
       find:
@@ -67,9 +70,6 @@
         state: absent
       with_items: "{{ old_conf_loc.files }}"
       delegate_to: 127.0.0.1
-  when:
-    - not ansible_check_mode
-    - old_conf_exist.stat.exists
 
 ##### Generating  server keys #####
 - name: Generate WireGuard private server key [REMOTE SERVER]
@@ -81,7 +81,8 @@
   lineinfile:
     path: /etc/wireguard/private.key
     line: "{{ out_pvkey_server.stdout }}"
-    create: yes
+    create: true
+    mode: "0640"
 
 - name: Change permission for key [REMOTE SERVER]
   file:
@@ -93,7 +94,7 @@
     - not ansible_check_mode
 
 - name: Generate WireGuard public server key [REMOTE SERVER]
-  shell: 'echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
+  shell: 'set -o pipefail && echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
   register: out_pubkey_server
   changed_when: out_pubkey_server.rc != 2
   when:
@@ -103,7 +104,8 @@
   lineinfile:
     path: /etc/wireguard/public.key
     line: "{{ out_pubkey_server.stdout }}"
-    create: yes
+    create: true
+    mode: "0640"
   when:
     - not ansible_check_mode
 
@@ -138,12 +140,13 @@
   command: wg genkey
   delegate_to: 127.0.0.1
   register: out_pvkey_local
+  changed_when: out_pvkey_local.rc != 2
   tags:
     - local_peer
 
 - name: Generate WireGuard public server key [LOCAL]
   become: true
-  shell: echo "{{ out_pvkey_local.stdout }}"| wg pubkey
+  shell: set -o pipefail && echo "{{ out_pvkey_local.stdout }}"| wg pubkey
   delegate_to: 127.0.0.1
   register: out_pubkey_local
   changed_when: out_pubkey_local.rc != 2
@@ -159,6 +162,7 @@
     path: /etc/wireguard/public.key
     line: "{{ out_pubkey_local.stdout }}"
     create: true
+    mode: "0640"
   delegate_to: 127.0.0.1
   when:
     - not ansible_check_mode
@@ -185,6 +189,7 @@
   template:
     src: wg_peer.j2
     dest: ./wg_peer.conf
+    mode: "0640"
   delegate_to: 127.0.0.1
   register: local_conf_path
   tags:
@@ -247,7 +252,7 @@
 - name: Enable WireGuard
   systemd:
     name: wg-quick@wg0.service
-    enabled: yes
+    enabled: true
   tags:
     - config
   when:
@@ -275,6 +280,6 @@
 
 - name: Path to local config
   debug:
-    msg: "{{ local_conf_path.dest}}"
+    msg: "{{ local_conf_path.dest }}"
   when:
     - not ansible_check_mode

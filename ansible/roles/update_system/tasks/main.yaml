@@ -3,13 +3,13 @@
 - name: System Info [Common]
   debug:
     msg:
-    - "ip": "{{ ansible_default_ipv4.address }}"
-    - "Host": "{{ ansible_nodename }}"
-    - "OS": "{{ ansible_os_family }}"
-    - "memory":  "{{ ansible_memtotal_mb }}"
-    - "vCPU": "{{ ansible_processor_vcpus }}"
-    - "Distribution": "{{ ansible_distribution }}"
-    - "interfaces": "{{ ansible_facts.interfaces }}"
+      - "ip": "{{ ansible_default_ipv4.address }}"
+      - "Host": "{{ ansible_nodename }}"
+      - "OS": "{{ ansible_os_family }}"
+      - "memory":  "{{ ansible_memtotal_mb }}"
+      - "vCPU": "{{ ansible_processor_vcpus }}"
+      - "Distribution": "{{ ansible_distribution }}"
+      - "interfaces": "{{ ansible_facts.interfaces }}"
   tags:
     - update_system
 

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+read -e -p 'Input your DO Token: ' -s -r DIGITALOCEAN_ACCESS_TOKEN
+export DIGITALOCEAN_ACCESS_TOKEN

@@ -1,18 +1,22 @@
 ---
 # handlers file for wg_install
-- name: Enable WG
+- name: Restart WG
   systemd:
     name: wg-quick@wg0.service
-    state: started
-    enabled: yes
+    state: restarted
 
 - name: Enable Firewalld
   systemd:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Reload Firewalld
   systemd:
     name: firewalld
     state: reloaded
+
+- name: Reload UFW
+  systemd:
+    name: ufw
+    state: restarted

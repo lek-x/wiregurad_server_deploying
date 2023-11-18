@@ -4,21 +4,18 @@ name ?= dev
 
 .PHONY: help
 help: ## Show this help
-	@printf "Usage:\n\tmake <target> %s %s %s %s %s %s\n" \
-	  "[PIPENV=<prefix to run utilites, like: 'poetry run'>]" \
-	  "[DEPLOYMENT_NAME=<new name for the project>]" \
-	  "[ORIGINAL_DEPLOYMENT_NAME=<old name of the project>]" \
-	  "[VERSION=<set this version>]"
-	@printf "Targets:\n"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-	  | sort \
-	  | awk 'BEGIN{FS=":"}{printf "  %-30s%s\n", $$1, substr($$2, match($$2, "## .*")+3)}'
-	@printf '\nHints:\n' \
-	  ; printf " - Create and/or source Python virtual environment in the first place, for example:\n    %s\n    %s\n" "python -m virtualenv ~/.local/lib/python3.9/github" "source ~/.local/lib/python3.9/github/bin/activate" \
-	  ; echo " - Run 'make init' to setup local development environment" \
-	  ; echo " - Run 'source ./env' to setup shell environment variables" \
-	  ; echo " - It is recommended to run 'make validate' before commiting changes (or use 'make publish')" \
-	  ; echo " - 'commitizen' is used to make commit and bump version"
+	@printf "Usage: make <target> %s %s %s %s %s %s\n" \
+	;  echo "make init_env - create virtual environment" \
+	;  echo "make space - create new terraform workspace" \
+	;  echo "make select _your_ws_name - select terraform workspace" \
+	;  echo "make init - init terraform" \
+	;  echo "make plan region=eu image=rocky size=1 - plan terraform infra" \
+	;  echo "make apply region=eu image=rocky size=1 - apply terraform infra" \
+	;  echo "make destroy region=eu image=rocky size=1 - destroy terraform infra" \
+	;  echo "make validate - validate terraform code" \
+	;  echo "make key - save ssh key" \
+	;  echo "make clean - remove all terraform state files" \
+	;  echo "make quick_start - fast track to prepare env and init code"
 
 init_env:
 	poetry shell
@@ -29,7 +26,7 @@ space:
 	terraform -chdir=terraform workspace new $(name)
 
 select:
-	terraform workspace select $(name)
+	terraform -chdir workspace select $(name)
 
 init:
 	cd terraform/ && terraform init

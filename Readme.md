@@ -35,13 +35,19 @@ make init_env
 source env_file
 ```
 
-3.Init modules
+3.Create terraform workspace
+
+```
+make space your_space_name
+```
+
+4.Init modules
 
 ```
 make init
 ```
 
-4.Plan infrasrtucture with passing arguments **region**, **image**, **size**.
+5.Plan infrasrtucture with passing arguments **region**, **image**, **size**.
 **Attention!** You have to provide local root password.
 All ansible output will be hiden because of it, to change this behavior,
 change option **sensetive** in variables.tf.
@@ -50,20 +56,20 @@ change option **sensetive** in variables.tf.
 make plan region=eu image=rocky size=1
 ```
 
-3.Deploy infrastructure with passing arguments **region**, **image**, **size**.
+6.Deploy infrastructure with passing arguments **region**, **image**, **size**.
 Without any confirmations.
 
 ```
 make apply region=eu image=rocky size=1
 ```
 
-4.Export private ssh key (name my_ssh.key) [ Optional ]
+7.Export private ssh key (name my_ssh.key) [ Optional ]
 
 ```
 make key
 ```
 
-5.Destroy infrastructure. Without any confirmations
+8.Destroy infrastructure. Without any confirmations
 
 ```
 make destroy
@@ -74,13 +80,19 @@ make destroy
 1.Clone repo
 2.Source env_file
 3.Go to directory terraform/
-4.Init terraform providers
+4.Create workspace
 
- ```
+```
+terraform workspace new  your_space_name
+```
+
+5.Init terraform providers
+
+```
 terraform init
- ```
+```
 
-5.Plan your infrastructure
+6.Plan your infrastructure
 **Attention!** You have to provide local root password.
 All ansible output will be hiden because of it, to change this behavior,
 change option **sensetive** in variables.tf.
@@ -89,13 +101,13 @@ change option **sensetive** in variables.tf.
  terraform plan -var region=eu -var image=rocky size=1
 ```
 
-6.Apply configuration
+7.Apply configuration
 
  ```
 terraform apply -var region=eu -var image=rocky size=1
  ```
 
-1.Ansible playbook is being started automatically.
+8.Ansible playbook is being started automatically.
 **wg_peer.conf** file will be saved in ansible/ directory.
 Use this file in your wiregurag client.
 

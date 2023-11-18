@@ -1,9 +1,9 @@
-# Fast deploy VPN Wireguard Server with Terraform, Ansible**
+# Fast deploy VPN Wireguard Server with Terraform, Ansible
 
 ## Description
 
 This code deploys small VM in Digital Ocean provider, and setups Wireguard Server
-with generating keys and config. It takes ~5 min to deploy WireGuard Server.
+with generating keys and config. It takes ~3 min to deploy WireGuard Server.
 
 ## Requrements
 
@@ -41,7 +41,10 @@ source env_file
 make init
 ```
 
-4.Plan infrasrtucture with passing arguments **region**, **image**, **size**
+4.Plan infrasrtucture with passing arguments **region**, **image**, **size**.
+**Attention!** You have to provide local root password.
+All ansible output will be hiden because of it, to change this behavior,
+change option **sensetive** in variables.tf.
 
 ```
 make plan region=eu image=rocky size=1
@@ -49,9 +52,6 @@ make plan region=eu image=rocky size=1
 
 3.Deploy infrastructure with passing arguments **region**, **image**, **size**.
 Without any confirmations.
-Attention! You have to provide local root password.
-All ansible output will be hiden because of it, to change this behavior,
-change option **sensetive** in variables.tf.
 
 ```
 make apply region=eu image=rocky size=1
@@ -81,6 +81,9 @@ terraform init
  ```
 
 5.Plan your infrastructure
+**Attention!** You have to provide local root password.
+All ansible output will be hiden because of it, to change this behavior,
+change option **sensetive** in variables.tf.
 
 ```
  terraform plan -var region=eu -var image=rocky size=1

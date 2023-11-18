@@ -16,6 +16,6 @@ variable "size" {
 }
 
 variable "root_pass" {
-  type = string
-  # sensitive = true
+  type      = string
+  sensitive = true
 }

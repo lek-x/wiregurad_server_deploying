@@ -10,6 +10,7 @@ with generating keys and config. It takes ~5 min to deploy WireGuard Server.
 - Installed Wireguard on the host OS for generating keys
 - Terraform >=1.0.4
 - Ansible core >= 2.0
+- root access on the host OS
 
 ## Tested with Wireguard Client on
 
@@ -22,25 +23,41 @@ with generating keys and config. It takes ~5 min to deploy WireGuard Server.
 
 ## Using make
 
-1.Init modules
+1.Init environment
+
+```
+make init_env
+```
+
+2.Source env_file and enter your DO Token
+
+```
+source env_file
+```
+
+3.Init modules
 
 ```
 make init
 ```
 
-2.Plan infrasrtucture with passing arguments **reg**, **img**
+4.Plan infrasrtucture with passing arguments **region**, **image**, **size**
 
 ```
-make plan reg=eu img=rocky
+make plan region=eu image=rocky size=1
 ```
 
-3.Deploy infrastructure with passing arguments **reg**, **img**. Without any confirmations
+3.Deploy infrastructure with passing arguments **region**, **image**, **size**.
+Without any confirmations.
+Attention! You have to provide local root password.
+All ansible output will be hiden because of it, to change this behavior,
+change option **sensetive** in variables.tf.
 
 ```
-make apply reg=eu img=rocky
+make apply region=eu image=rocky size=1
 ```
 
-4.Export private ssh key (name my_ssh.key)
+4.Export private ssh key (name my_ssh.key) [ Optional ]
 
 ```
 make key
@@ -55,33 +72,35 @@ make destroy
 ### Using terraform
 
 1.Clone repo
-2.Add your Digital Ocean token to **terraform.tfvars.example**,
-  and rename it to **terraform.tfvars**
-3.Init terraform providers
+2.Source env_file
+3.Go to directory terraform/
+4.Init terraform providers
 
-  ```
- terraform init
-  ```
+ ```
+terraform init
+ ```
 
-1.Plan your infrastructure
+5.Plan your infrastructure
 
-  ```
-   terraform plan -var region=eu -var image=rocky
-  ```
+```
+ terraform plan -var region=eu -var image=rocky size=1
+```
 
-1.Apply configuration
+6.Apply configuration
 
-  ```
- terraform apply -var region=eu -var image=rocky
-  ```
+ ```
+terraform apply -var region=eu -var image=rocky size=1
+ ```
 
-1.Ansible playbook runs automatically, **wg_peer.conf** file will be saved
-in current directory. Use this file in your wiregurag client.
+1.Ansible playbook is being started automatically.
+**wg_peer.conf** file will be saved in ansible/ directory.
+Use this file in your wiregurag client.
 
 ## Variables
 
 region: usa=nyc1 (New York), eu=fra1 (Frankfurt), ln=lon1 (London)
 image: ubuntu=ubuntu-22-10-x64, rocky=rockylinux-9-x64
+size: size=1 (1vCPU/1GB Ram) size=2 (2vCPU/4GB Ram)
 
 ## License
 

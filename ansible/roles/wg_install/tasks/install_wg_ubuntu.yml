@@ -94,7 +94,9 @@
     - not ansible_check_mode
 
 - name: Generate WireGuard public server key [REMOTE SERVER]
-  shell: 'set -o pipefail && echo "{{ out_pvkey_server.stdout }}" | wg pubkey'
+  shell: set -o pipefail && echo "{{ out_pvkey_server.stdout }}" | wg pubkey
+  args:
+    executable: /usr/bin/bash
   register: out_pubkey_server
   changed_when: out_pubkey_server.rc != 2
   when:
@@ -147,6 +149,8 @@
 - name: Generate WireGuard public server key [LOCAL]
   become: true
   shell: set -o pipefail && echo "{{ out_pvkey_local.stdout }}"| wg pubkey
+  args:
+    executable: /usr/bin/bash
   delegate_to: 127.0.0.1
   register: out_pubkey_local
   changed_when: out_pubkey_local.rc != 2
@@ -189,7 +193,7 @@
   template:
     src: wg_peer.j2
     dest: ./wg_peer.conf
-    mode: "0640"
+    mode: "0666"
   delegate_to: 127.0.0.1
   register: local_conf_path
   tags:

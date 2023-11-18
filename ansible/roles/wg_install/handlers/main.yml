@@ -19,4 +19,4 @@
 - name: Reload UFW
   systemd:
     name: ufw
-    state: reloaded
+    state: restarted

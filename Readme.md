@@ -113,9 +113,21 @@ Use this file in your wiregurag client.
 
 ## Variables
 
-region: usa=nyc1 (New York), eu=fra1 (Frankfurt), ln=lon1 (London)
-image: ubuntu=ubuntu-22-10-x64, rocky=rockylinux-9-x64
-size: size=1 (1vCPU/1GB Ram) size=2 (2vCPU/4GB Ram)
+**region:**
+
+- usa=nyc1 (New York)
+- eu=fra1 (Frankfurt)
+- ln=lon1 (London)
+
+**image:**
+
+- ubuntu=ubuntu (23-10-x64)
+- rocky=rocky (rockylinux-9-x64)
+
+**size:**
+
+- size=1 (1vCPU/1GB Ram)
+- size=2 (2vCPU/4GB Ram)
 
 ## License
 

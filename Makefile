@@ -26,7 +26,7 @@ space:
 	terraform -chdir=terraform workspace new $(name)
 
 select:
-	terraform -chdir workspace select $(name)
+	terraform -chdir=terraform workspace select $(name)
 
 init:
 	cd terraform/ && terraform init
